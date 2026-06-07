@@ -10,7 +10,11 @@ A customer is looking for a kitchen worktop and splashback. They upload a photo 
 - Auth: Email/password JWT, **Emergent Google OAuth (real)**, Phone (placeholder)
 
 ## Implemented
-### Iteration 3 — Object Storage + Per-Stone SEO (current)
+### Iteration 4 — Modular backend + Curation control (current)
+- **server.py refactored** from 855 lines → 114-line entry + `deps.py` (DB/JWT/auth) + `models.py` + 5 routers (`auth`, `stones`, `visualize`, `quotes`, `credits`). No URL contracts changed. 67/67 tests still pass.
+- **`published` flag on visualizations** (default `true`). New `PATCH /api/visualizations/{viz_id}` lets the owner toggle. Public per-stone showroom filters `published: {$ne: false}` (preserves backward-compatibility for pre-feature docs). Frontend gallery cards get a globe/lock toggle button + "Private" badge for unpublished renders.
+
+### Iteration 3 — Object Storage + Per-Stone SEO
 - **Object storage migration**: Generated kitchen + result PNGs now upload to Emergent object storage via `/app/backend/storage.py` on every render. MongoDB stores only the path + the backend-served URL; doc size dropped from ~700KB to ~1KB per render. Legacy renders (pre-iter-3) keep their inline base64 and serve via the same endpoint via a backward-compat path.
 - **Public image endpoint** `GET /api/public/renders/{viz_id}/image/{kind}` (kitchen|result) — no auth, anyone with the render id can fetch the bytes (same capability model as `/r/:id`).
 - **Per-stone SEO showroom** `GET /api/public/stones/{id}` → public `/stones/:id` page with hero image, type/finish/origin, description, and a "{stone} in real kitchens" grid of the 8 most recent renders. Each card links to `/r/:id`. Landing-page stone cards now link into their per-stone page.
