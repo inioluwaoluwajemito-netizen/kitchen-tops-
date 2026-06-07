@@ -1,0 +1,98 @@
+{
+  "project_name": "Rated Worktops",
+  "domain": "Premium Kitchen Showroom & SaaS Visualizer",
+  "theme_and_archetype": {
+    "theme": "Dark",
+    "archetype": "5 (Luxury)",
+    "rationale": "A dark, moody, cinematic theme creates an expensive 'stone gallery' feel. Deep obsidian and slate backgrounds allow the bright veins of white marble and the sparkle of quartz to visually pop, establishing immediate trust and high-end positioning."
+  },
+  "color_system": {
+    "background_base": "#09090B",
+    "background_surface": "#18181B",
+    "background_glass": "rgba(24, 24, 27, 0.65)",
+    "primary_accent": "#CBA153",
+    "primary_hover": "#B38C44",
+    "text_main": "#FAFAFA",
+    "text_muted": "#A1A1AA",
+    "border_subtle": "rgba(250, 250, 250, 0.1)",
+    "success": "#4ADE80",
+    "error": "#F87171",
+    "rules": [
+      "Never use pure black or pure gray; always tint with a subtle cool undertone (zinc/slate).",
+      "Gradients are strictly prohibited unless used as a subtle radial glow behind the main hero product.",
+      "Primary accent (Gold/Bronze) is used SPARINGLY for conversion actions (Generate, Buy Credits) and active states."
+    ]
+  },
+  "typography": {
+    "headings": {
+      "family": "Playfair Display, serif",
+      "weights": ["400", "500", "700"],
+      "usage_rules": "Use tracking-tight for H1/H2. Never uppercase. Represents the 'editorial gallery' voice."
+    },
+    "body": {
+      "family": "Manrope, sans-serif",
+      "weights": ["300", "400", "500"],
+      "usage_rules": "Clean geometric sans for high legibility in the dashboard and dense tool settings."
+    },
+    "mono": {
+      "family": "JetBrains Mono, monospace",
+      "usage_rules": "Use for credit balances, image dimensions, and technical metadata."
+    },
+    "scale": {
+      "h1": "text-5xl sm:text-6xl tracking-tighter leading-none",
+      "h2": "text-3xl sm:text-4xl tracking-tight",
+      "h3": "text-xl sm:text-2xl",
+      "body": "text-base leading-relaxed text-zinc-300",
+      "labels": "text-xs uppercase tracking-[0.2em] text-zinc-500"
+    }
+  },
+  "layout_and_spacing": {
+    "spacing_scale": "Generous. Use p-8, p-12, p-16 for marketing sections. Use p-4, p-6 for dashboard panels.",
+    "marketing_grid": "Mode A: 'Tetris' Grid. Asymmetrical layouts for 'How it Works' and feature showcases. Leave breathing room.",
+    "dashboard_grid": "Mode B: 'Control Room' Grid. Dense, modular layout. Left sidebar (25%) for stone catalog, Center (50%) for visualizer canvas, Right sidebar (25%) for generation settings and credit status.",
+    "alignment": "Optical alignment over geometric. Left-align text blocks. Center align only high-impact hero headings."
+  },
+  "surface_strategies": {
+    "header_nav": "Glassmorphism (Crystal Variant). backdrop-blur-2xl, bg-zinc-950/70, 1px border-b border-white/10.",
+    "dashboard_panels": "Neumorphism (Tactile). bg-zinc-900, 1px solid border-white/5, subtle drop-shadow-xl.",
+    "pricing_cards": "The 'Tracing Beam' effect. Active glow on the borders of the 'Pro' credit package.",
+    "image_overlays": "Hero images must use bg-black/40 overlay to ensure text contrast. No flat gray overlays."
+  },
+  "media_assets": {
+    "hero_backgrounds": [
+      "https://images.unsplash.com/photo-1628745277862-bc0b2d68c50c?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NTN8MHwxfHNlYXJjaHwxfHxtb2Rlcm4lMjBsdXh1cnklMjBraXRjaGVuJTIwaW50ZXJpb3J8ZW58MHx8fHwxNzgwODMzNDgxfDA&ixlib=rb-4.1.0&q=85",
+      "https://images.unsplash.com/photo-1512916194211-3f2b7f5f7de3?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NTN8MHwxfHNlYXJjaHw0fHxtb2Rlcm4lMjBsdXh1cnklMjBraXRjaGVuJTIwaW50ZXJpb3J8ZW58MHx8fHwxNzgwODMzNDgxfDA&ixlib=rb-4.1.0&q=85"
+    ],
+    "stone_textures": {
+      "white_marble": "https://images.unsplash.com/photo-1558346648-9757f2fa4474?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NzZ8MHwxfHNlYXJjaHwyfHxtYXJibGUlMjBzdG9uZSUyMHRleHR1cmV8ZW58MHx8fHwxNzgwODMzNDgxfDA&ixlib=rb-4.1.0&q=85",
+      "black_marble": "https://images.unsplash.com/photo-1550053808-52a75a05955d?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NzZ8MHwxfHNlYXJjaHwzfHxtYXJibGUlMjBzdG9uZSUyMHRleHR1cmV8ZW58MHx8fHwxNzgwODMzNDgxfDA&ixlib=rb-4.1.0&q=85",
+      "rough_granite": "https://images.pexels.com/photos/7683580/pexels-photo-7683580.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940"
+    },
+    "gallery_kitchens": [
+      "https://images.unsplash.com/photo-1725257928373-dc6d2ac7b145?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NTN8MHwxfHNlYXJjaHwzfHxtb2Rlcm4lMjBsdXh1cnklMjBraXRjaGVuJTIwaW50ZXJpb3J8ZW58MHx8fHwxNzgwODMzNDgxfDA&ixlib=rb-4.1.0&q=85",
+      "https://images.pexels.com/photos/8142046/pexels-photo-8142046.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940"
+    ]
+  },
+  "component_strategy": {
+    "forms_and_inputs": "Shadcn UI customized. Remove heavy ring offsets, use border-zinc-800, focus:border-primary_accent.",
+    "buttons": "Shadcn Button. Primary buttons use bg-[#CBA153] text-black hover:bg-[#B38C44]. Secondary buttons use glass/outline text-white.",
+    "icons": "@phosphor-icons/react (Duotone weight). For a premium, sophisticated editorial feel.",
+    "visualizer_canvas": "Custom component using framer-motion and react-compare-slider. Needs to feel like a pro photo editor, not a generic web form."
+  },
+  "page_instructions": {
+    "landing_page": "Cinematic entry. Lenis smooth scroll. Hero with the darkest overlay. Marquee of stone names/textures in 'Editorial Ribbon' style (slow, wide gaps). Use asymmetrical Tetris grid for features.",
+    "auth_pages": "Split screen layout. Left side: stunning dark kitchen photo. Right side: minimalist login/signup form. Emphasize '3 Free Credits'.",
+    "dashboard_visualizer": "Editor-first layout. Hide global footer here. Maximize viewport height (h-screen). Left sidebar: Scrollable stone catalog. Center: Workspace with photo upload/compare view. Right: AI Settings (Auto/Hybrid), Generate button, Credit balance.",
+    "stone_catalog": "Bento grid of 12+ stones. High resolution texture thumbnails. Hover states reveal stone type and finish metadata.",
+    "credits_page": "Grid borders style. Clear packages. Include mock payment options (Stripe, PayPal, Apple Pay) using stylized buttons or Phosphor icons. Show current balance prominently in mono font."
+  },
+  "motion_and_interactions": {
+    "hover_states": "All interactive elements must change state. Cards lift slightly (-translate-y-1) and borders brighten.",
+    "page_transitions": "Framer motion fade-in (opacity 0 to 1, y: 10 to 0) staggered for list items.",
+    "image_loading": "Use skeleton loaders (Shadcn Skeleton) matching the dark theme (bg-zinc-800) before high-res kitchen/stone photos load."
+  },
+  "accessibility_and_testing": {
+    "contrast": "Ensure text over images has drop-shadow or dark overlay to meet APCA contrast ratios.",
+    "testing_attributes": "All buttons, inputs, links, forms, and interactive visualization tools MUST have explicit data-testid attributes (e.g., data-testid='upload-photo-btn', data-testid='generate-render-btn', data-testid='credit-balance-display')."
+  }
+}
