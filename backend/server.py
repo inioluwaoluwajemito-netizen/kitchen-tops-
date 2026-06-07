@@ -174,23 +174,6 @@ class QuoteUpdate(BaseModel):
     status: Optional[str] = None  # new | contacted | closed
 
 
-
-    session_id: str
-
-
-class QuoteCreate(BaseModel):
-    name: str = Field(min_length=1, max_length=80)
-    email: EmailStr
-    phone: Optional[str] = ""
-    notes: Optional[str] = ""
-    visualization_id: Optional[str] = None
-    stone_id: Optional[str] = None
-
-
-class QuoteUpdate(BaseModel):
-    status: Optional[str] = None  # new | contacted | closed
-
-
 async def require_admin(current=Depends(get_current_user)) -> dict:
     if current.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Admin only")
