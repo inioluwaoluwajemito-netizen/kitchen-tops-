@@ -134,6 +134,33 @@ class CustomStoneCreate(BaseModel):
     image_base64: str
 
 
+class HouseStoneCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+    type: str = Field(min_length=1, max_length=40)
+    finish: str = Field(min_length=1, max_length=40)
+    origin: str = ""
+    description: str = ""
+    image_url: str = Field(min_length=1)
+    swatch_color: str = "#A1A1A1"
+
+
+class HouseStoneUpdate(BaseModel):
+    name: Optional[str] = None
+    type: Optional[str] = None
+    finish: Optional[str] = None
+    origin: Optional[str] = None
+    description: Optional[str] = None
+    image_url: Optional[str] = None
+    swatch_color: Optional[str] = None
+    active: Optional[bool] = None
+
+
+async def require_admin(current=Depends(get_current_user)) -> dict:
+    if current.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+    return current
+
+
 # ============ Auth Endpoints ============
 @api.post("/auth/register")
 async def register(req: RegisterReq):
@@ -178,11 +205,26 @@ async def logout(current=Depends(get_current_user)):
 
 
 # ============ Stones ============
+def _house_stone_public(s: dict) -> dict:
+    return {
+        "id": s["id"],
+        "name": s["name"],
+        "type": s["type"],
+        "finish": s["finish"],
+        "origin": s.get("origin", ""),
+        "description": s.get("description", ""),
+        "image_url": s["image_url"],
+        "swatch_color": s.get("swatch_color", "#A1A1A1"),
+    }
+
+
 @api.get("/stones")
 async def list_stones(current=Depends(get_current_user)):
+    house_cursor = db.house_stones.find({"active": {"$ne": False}}, {"_id": 0}).sort("sort_order", 1)
+    house = [_house_stone_public(s) for s in await house_cursor.to_list(500)]
     custom_cursor = db.custom_stones.find({"user_id": current["id"]}, {"_id": 0, "image_base64": 0})
     custom = await custom_cursor.to_list(200)
-    return {"catalog": STONES, "custom": custom}
+    return {"catalog": house, "custom": custom}
 
 
 @api.post("/stones/custom")
@@ -211,7 +253,7 @@ async def add_custom_stone(body: CustomStoneCreate, current=Depends(get_current_
 
 
 async def fetch_stone_payload(stone_id: str, user_id: str):
-    s = get_stone_by_id(stone_id)
+    s = await db.house_stones.find_one({"id": stone_id}, {"_id": 0})
     if s:
         return {
             "id": s["id"],
@@ -233,6 +275,58 @@ async def fetch_stone_payload(stone_id: str, user_id: str):
             "is_custom": True,
         }
     return None
+
+
+# ============ Admin: house catalog management ============
+@api.get("/admin/stones")
+async def admin_list_stones(_admin=Depends(require_admin)):
+    cursor = db.house_stones.find({}, {"_id": 0}).sort("sort_order", 1)
+    items = await cursor.to_list(500)
+    return {"items": items}
+
+
+@api.post("/admin/stones")
+async def admin_create_stone(body: HouseStoneCreate, _admin=Depends(require_admin)):
+    stone_id = body.name.lower().strip().replace(" ", "-")[:40] + "-" + uuid.uuid4().hex[:4]
+    last = await db.house_stones.find_one({}, sort=[("sort_order", -1)])
+    next_order = (last.get("sort_order", 0) + 1) if last else 1
+    doc = {
+        "id": stone_id,
+        "name": body.name.strip(),
+        "type": body.type.strip(),
+        "finish": body.finish.strip(),
+        "origin": body.origin.strip(),
+        "description": body.description.strip(),
+        "image_url": body.image_url.strip(),
+        "swatch_color": body.swatch_color.strip(),
+        "active": True,
+        "sort_order": next_order,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.house_stones.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+
+@api.patch("/admin/stones/{stone_id}")
+async def admin_update_stone(stone_id: str, body: HouseStoneUpdate, _admin=Depends(require_admin)):
+    updates = {k: v for k, v in body.model_dump(exclude_none=True).items()}
+    if not updates:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    res = await db.house_stones.find_one_and_update(
+        {"id": stone_id}, {"$set": updates}, return_document=True, projection={"_id": 0}
+    )
+    if not res:
+        raise HTTPException(status_code=404, detail="Stone not found")
+    return res
+
+
+@api.delete("/admin/stones/{stone_id}")
+async def admin_delete_stone(stone_id: str, _admin=Depends(require_admin)):
+    res = await db.house_stones.delete_one({"id": stone_id})
+    if res.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Stone not found")
+    return {"deleted": True}
 
 
 # ============ Image generation (Gemini Nano Banana) ============
@@ -437,6 +531,26 @@ async def on_startup():
     await db.users.create_index("id", unique=True)
     await db.visualizations.create_index("user_id")
     await db.custom_stones.create_index("user_id")
+    await db.house_stones.create_index("id", unique=True)
+    await db.house_stones.create_index("sort_order")
+
+    # Seed house_stones from stones_data.py if collection is empty
+    if await db.house_stones.count_documents({}) == 0:
+        for i, s in enumerate(STONES):
+            await db.house_stones.insert_one({
+                "id": s["id"],
+                "name": s["name"],
+                "type": s["type"],
+                "finish": s["finish"],
+                "origin": s.get("origin", ""),
+                "description": s.get("description", ""),
+                "image_url": s["image_url"],
+                "swatch_color": s.get("swatch_color", "#A1A1A1"),
+                "active": True,
+                "sort_order": i + 1,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            })
+        logger.info(f"Seeded {len(STONES)} house stones")
 
     # Seed admin
     admin_email = os.environ.get("ADMIN_EMAIL", "admin@ratedworktops.com").lower()

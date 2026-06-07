@@ -10,6 +10,7 @@ import Dashboard from "@/pages/Dashboard";
 import StoneCatalog from "@/pages/StoneCatalog";
 import Visualizations from "@/pages/Visualizations";
 import Credits from "@/pages/Credits";
+import AdminCatalog from "@/pages/AdminCatalog";
 import Navbar from "@/components/Navbar";
 
 function Protected({ children }) {
@@ -104,6 +105,16 @@ function AppShell() {
           <Protected>
             <Layout>
               <Credits />
+            </Layout>
+          </Protected>
+        }
+      />
+      <Route
+        path="/admin/catalog"
+        element={
+          <Protected>
+            <Layout>
+              <AdminCatalog />
             </Layout>
           </Protected>
         }

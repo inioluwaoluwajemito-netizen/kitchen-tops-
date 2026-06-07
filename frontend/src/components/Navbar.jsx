@@ -41,6 +41,11 @@ export default function Navbar() {
               <NavLink to="/credits" className={navItem} data-testid="nav-credits">
                 Credits
               </NavLink>
+              {user.role === "admin" && (
+                <NavLink to="/admin/catalog" className={navItem} data-testid="nav-admin">
+                  Admin
+                </NavLink>
+              )}
             </>
           ) : (
             <>
