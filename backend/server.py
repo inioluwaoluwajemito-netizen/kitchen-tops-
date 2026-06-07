@@ -622,12 +622,23 @@ async def public_stone_detail(stone_id: str):
     s = await db.house_stones.find_one({"id": stone_id, "active": {"$ne": False}}, {"_id": 0})
     if not s:
         raise HTTPException(status_code=404, detail="Stone not found")
-    # Recent public renders that used this stone (latest 8)
+    # Recent public renders that used this stone (latest 8). We expose ONLY the
+    # backend image URL — never inline base64 — so the JSON payload stays small
+    # for legacy renders too.
     renders_cursor = db.visualizations.find(
         {"stone_id": stone_id},
-        {"_id": 0, "id": 1, "result_image": 1, "created_at": 1, "mode": 1},
+        {"_id": 0, "id": 1, "created_at": 1, "mode": 1},
     ).sort("created_at", -1).limit(8)
-    renders = await renders_cursor.to_list(8)
+    renders_raw = await renders_cursor.to_list(8)
+    renders = [
+        {
+            "id": r["id"],
+            "created_at": r.get("created_at"),
+            "mode": r.get("mode"),
+            "result_image": f"/api/public/renders/{r['id']}/image/result",
+        }
+        for r in renders_raw
+    ]
     return {
         "stone": _house_stone_public(s),
         "renders": renders,
