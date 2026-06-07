@@ -183,7 +183,7 @@ def test_visualize_core(session, new_user):
     assert r.status_code == 200, f"visualize failed {r.status_code}: {r.text[:400]}"
     data = r.json()
     assert "visualization" in data
-    assert data["visualization"]["result_image"].startswith("data:image/")
+    assert data["visualization"]["result_image"].startswith(("data:image/", "/api/public/renders/"))
     assert data["credits_remaining"] == pre_balance - 1
 
 

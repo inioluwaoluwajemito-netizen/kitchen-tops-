@@ -131,7 +131,9 @@ def visualization_id(session, user_token):
     r = session.post(f"{API}/visualize", json=payload, headers=auth(user_token["token"]), timeout=120)
     assert r.status_code == 200, f"visualize failed: {r.status_code} {r.text[:300]}"
     viz = r.json()["visualization"]
-    assert viz["result_image"].startswith("data:image/")
+    # Iteration 3: result_image is now a backend URL path, not a data: URL.
+    # Accept either for backward-compat during transition.
+    assert viz["result_image"].startswith(("data:image/", "/api/public/renders/"))
     return viz["id"]
 
 
@@ -141,7 +143,7 @@ def test_public_render_returns_200_no_auth(session, visualization_id):
     data = r.json()
     assert data["id"] == visualization_id
     assert data["stone_name"]
-    assert data["result_image"].startswith("data:image/")
+    assert data["result_image"].startswith(("data:image/", "/api/public/renders/"))
 
 
 def test_public_render_returns_404_bogus(session):

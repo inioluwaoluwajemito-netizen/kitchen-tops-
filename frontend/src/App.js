@@ -13,6 +13,7 @@ import Credits from "@/pages/Credits";
 import AdminCatalog from "@/pages/AdminCatalog";
 import AdminQuotes from "@/pages/AdminQuotes";
 import RenderPublic from "@/pages/RenderPublic";
+import StonePublic from "@/pages/StonePublic";
 import AuthCallback from "@/pages/AuthCallback";
 import Navbar from "@/components/Navbar";
 
@@ -63,6 +64,7 @@ function AppRouter() {
         }
       />
       <Route path="/r/:id" element={<RenderPublic />} />
+      <Route path="/stones/:id" element={<StonePublic />} />
       <Route
         path="/login"
         element={

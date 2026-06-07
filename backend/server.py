@@ -16,13 +16,14 @@ from typing import Optional, List
 
 import bcrypt
 import jwt
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, UploadFile, File, Form
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, UploadFile, File, Form, Response
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, EmailStr, Field
 
 from stones_data import STONES, get_stone_by_id
+from storage import init_storage, put_object, get_object, make_path, APP_NAME as STORAGE_APP_NAME
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger("rated-worktops")
@@ -504,14 +505,38 @@ async def visualize(req: VisualizeReq, current=Depends(get_current_user)):
         raise HTTPException(status_code=402, detail="No credits left.")
 
     viz_id = str(uuid.uuid4())
-    result_data_url = f"data:image/png;base64,{result_b64}"
-    kitchen_data_url = req.kitchen_image_base64 if req.kitchen_image_base64.startswith("data:") else f"data:image/jpeg;base64,{kitchen_b64}"
+
+    # Upload images to object storage. Fall back to inline base64 data URLs
+    # if storage isn't available (keeps the feature working).
+    kitchen_path = None
+    result_path = None
+    kitchen_image_field = None
+    result_image_field = None
+
+    try:
+        kitchen_bytes = base64.b64decode(kitchen_b64)
+        result_bytes = base64.b64decode(result_b64)
+        kitchen_path = await put_object(make_path(viz_id, "kitchen", "jpg"), kitchen_bytes, "image/jpeg")
+        result_path = await put_object(make_path(viz_id, "result", "png"), result_bytes, "image/png")
+        # URL served by our backend (PUBLIC by visualization-id capability — same model as /r/:id)
+        kitchen_image_field = f"/api/public/renders/{viz_id}/image/kitchen"
+        result_image_field = f"/api/public/renders/{viz_id}/image/result"
+    except Exception as storage_err:
+        logger.warning(f"Storage upload failed, falling back to inline base64: {storage_err}")
+        result_image_field = f"data:image/png;base64,{result_b64}"
+        kitchen_image_field = (
+            req.kitchen_image_base64
+            if req.kitchen_image_base64.startswith("data:")
+            else f"data:image/jpeg;base64,{kitchen_b64}"
+        )
 
     viz_doc = {
         "id": viz_id,
         "user_id": current["id"],
-        "kitchen_image": kitchen_data_url,
-        "result_image": result_data_url,
+        "kitchen_image": kitchen_image_field,
+        "result_image": result_image_field,
+        "kitchen_path": kitchen_path,
+        "result_path": result_path,
         "stone_id": stone["id"],
         "stone_name": stone["name"],
         "stone_image": stone["image_url"],
@@ -556,6 +581,56 @@ async def public_render(viz_id: str):
         "result_image": viz.get("result_image"),
         "mode": viz.get("mode"),
         "created_at": viz.get("created_at"),
+    }
+
+
+@api.get("/public/renders/{viz_id}/image/{kind}")
+async def public_render_image(viz_id: str, kind: str):
+    if kind not in {"kitchen", "result"}:
+        raise HTTPException(status_code=400, detail="Invalid kind")
+    viz = await db.visualizations.find_one({"id": viz_id}, {"_id": 0})
+    if not viz:
+        raise HTTPException(status_code=404, detail="Render not found")
+    path_field = f"{kind}_path"
+    storage_path = viz.get(path_field)
+    if not storage_path:
+        # Legacy render — image inline as base64 data URL in `{kind}_image`
+        data_url = viz.get(f"{kind}_image", "")
+        if data_url.startswith("data:"):
+            try:
+                header, b64 = data_url.split(",", 1)
+                ctype = header.split(";")[0][5:] or "image/png"
+                return Response(content=base64.b64decode(b64), media_type=ctype)
+            except Exception:
+                raise HTTPException(status_code=500, detail="Corrupt legacy image")
+        raise HTTPException(status_code=404, detail="Image unavailable")
+    try:
+        content, ctype = await get_object(storage_path)
+    except Exception as e:
+        logger.exception("Storage fetch failed")
+        raise HTTPException(status_code=502, detail=f"Storage error: {str(e)[:120]}")
+    return Response(
+        content=content,
+        media_type=ctype or ("image/png" if kind == "result" else "image/jpeg"),
+        headers={"Cache-Control": "public, max-age=86400"},
+    )
+
+
+# ============ Public per-stone showroom page ============
+@api.get("/public/stones/{stone_id}")
+async def public_stone_detail(stone_id: str):
+    s = await db.house_stones.find_one({"id": stone_id, "active": {"$ne": False}}, {"_id": 0})
+    if not s:
+        raise HTTPException(status_code=404, detail="Stone not found")
+    # Recent public renders that used this stone (latest 8)
+    renders_cursor = db.visualizations.find(
+        {"stone_id": stone_id},
+        {"_id": 0, "id": 1, "result_image": 1, "created_at": 1, "mode": 1},
+    ).sort("created_at", -1).limit(8)
+    renders = await renders_cursor.to_list(8)
+    return {
+        "stone": _house_stone_public(s),
+        "renders": renders,
     }
 
 
@@ -714,6 +789,12 @@ async def on_startup():
     await db.house_stones.create_index("sort_order")
     await db.quotes.create_index("created_at")
     await db.quotes.create_index("status")
+
+    # Object storage
+    try:
+        await init_storage()
+    except Exception as e:
+        logger.error(f"Storage init failed: {e}. New renders will fall back to base64-in-Mongo.")
 
     # Seed house_stones from stones_data.py if collection is empty
     if await db.house_stones.count_documents({}) == 0:

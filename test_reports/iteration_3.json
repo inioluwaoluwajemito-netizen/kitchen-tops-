@@ -1,0 +1,48 @@
+{
+  "summary": "Iteration 3 backend testing complete. 18/18 new tests + 19/19 iteration2 regression pass (37 passed in 26s in combined run). One pre-existing test in test_rated_worktops.py was updated (stale assertion that result_image is a `data:` URL — now it's a backend URL). Storage migration verified end-to-end: a fresh Gemini visualize uploads kitchen + result to Emergent object storage, returns backend URLs in `kitchen_image`/`result_image`, plus canonical `kitchen_path`/`result_path` fields. Mongo doc size now ~1KB vs previous ~700KB. Legacy data: URL inline images still serve via backward-compat branch. Per-stone showroom endpoint works for active stones, returns 404 for inactive / bogus IDs. Regression smoke for /api/stones, /api/admin/stones, /api/admin/quotes, /api/quotes, /api/credits/purchase (paypal/apple_pay/google_pay) all green.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "GET /api/public/renders/{id}/image/{kind}",
+        "issue": "Backend correctly sets `Cache-Control: public, max-age=86400` in source, but the Kubernetes ingress / Cloudflare layer rewrites it to `no-store, no-cache, must-revalidate` for all responses. Out of scope for backend code, but worth noting because images won't be browser-cached in production via this proxy."
+      },
+      {
+        "endpoint": "/api/visualize",
+        "issue": "Shared EMERGENT_LLM_KEY budget exhausted after running all three suites back-to-back (3 real Gemini calls per pass). Test `test_visualize_no_credits` failed once with a 500 saying \"Budget has been exceeded! Current cost: 1.4246, Max budget: 1.4\". Not a product bug — the iteration3 + iteration2 suites alone pass cleanly. May want to retry the last test after budget reset."
+      }
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_iteration3.py",
+    "/app/backend/tests/test_iteration2.py",
+    "/app/backend/tests/test_rated_worktops.py",
+    "/app/test_reports/pytest/iteration3_results.xml"
+  ],
+  "action_items": [
+    "(Optional, infra) If long-lived CDN caching of generated images is desired, ensure ingress passes through Cache-Control from origin instead of overriding to no-store.",
+    "(Optional, cleanup) Iteration 2 already noted duplicate QuoteCreate/QuoteUpdate class blocks in server.py — still present in this iteration. Cosmetic only."
+  ],
+  "critical_code_review_comments": [
+    "storage.py correctly uses an asyncio.Lock to guard one-time init and retries once on 403 (key rotation) — solid.",
+    "visualize endpoint has a defensive try/except around storage upload that falls back to inline base64 if storage fails. Good safety net but the fallback path means a Mongo doc could still grow to ~700KB if storage breaks; consider alerting/logging more loudly than `logger.warning`.",
+    "server.py file is now 844 lines — beyond the 700-line guideline. Consider splitting into modules (auth, stones, visualize, quotes, credits).",
+    "GET /api/public/stones/{id} `renders` array still includes `result_image` (the backend URL or legacy data: URL) directly in the listing payload. For legacy docs this means embedding a large base64 blob inside the showroom JSON. Recommend projecting only `id` + computing the image URL on the fly, regardless of whether the doc has a `result_path` or legacy `result_image`.",
+    "Public showroom does not paginate or filter by quality — fine for now but with >8 renders any new active stone could surface low-quality results to anonymous viewers. Consider a `published`/`featured` flag on visualizations.",
+    "_house_stone_public projects `featured`, `description`, `origin` correctly. Good."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration3.py (NEW — 18 tests covering storage migration + showroom)",
+    "/app/backend/tests/conftest.py (NEW — pytest-asyncio config)",
+    "/app/backend/tests/test_iteration2.py (relaxed two stale `result_image.startswith('data:image/')` assertions to accept the new `/api/public/renders/...` backend URL)",
+    "/app/backend/tests/test_rated_worktops.py (same stale assertion fix in test_visualize_core)"
+  ],
+  "success_rate": {"backend": "100% (18/18 iter3 + 19/19 iter2; 16/17 rated_worktops with the one failure being an LLM budget cap, not a product bug)", "frontend": "not tested (skipped per request)"},
+  "test_credentials": "Admin admin@ratedworktops.com / Admin@RW2026 verified. Fresh users registered per run (it3_*@ratedworktops.com).",
+  "seed_data_creation": "Per run creates: 1 fresh user, 1 real Gemini visualization (uploaded to Emergent object storage at rated-worktops/renders/{id}/{kitchen.jpg,result.png}), 1 legacy synthetic doc inserted+deleted, 1 inactive house_stones row created+deleted, 1 public quote row. Stones state mutates `featured` on carrara-white (reset to true at end of iter2 suite).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All iteration 3 contracts verified: visualization doc now stores only paths + URLs (~1KB), object storage round-trips via /api/public/renders/{id}/image/{kind} (kitchen returns image/jpeg, result returns image/png ~580KB). Legacy data: URL docs still served via backward-compat branch in the same endpoint. Per-stone showroom (/api/public/stones/{id}) returns 404 for inactive/bogus. Two product surface-area smells worth a future fix: (a) server.py at 844 lines should be split; (b) showroom's `renders` payload still includes raw image URLs which for legacy docs would inline base64. Budget on EMERGENT_LLM_KEY runs low after running all 3 suites in one go (~3 Gemini calls); space them out or run iteration3 alone for quick verification.",
+  "rca of the issue": "Cache-Control override: ingress proxy rewrites cache headers — confirmed by inspecting response headers (CF-Ray + 'Server: cloudflare'). Not a server.py bug. Budget exhaustion: shared EMERGENT_LLM_KEY hit $1.4 cap after sequential Gemini calls across three suites; visible in the 500 response detail."
+}

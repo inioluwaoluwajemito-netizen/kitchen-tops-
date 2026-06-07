@@ -121,23 +121,33 @@ export default function Landing() {
           </Link>
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {stones.map((s) => (
-            <div key={s.id || s.name} className="group relative aspect-[4/5] overflow-hidden rounded-lg border border-white/5">
-              <img src={s.image_url} alt={s.name} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
-              {s.featured && (
-                <div className="absolute top-3 right-3 px-2 py-0.5 bg-gold text-black text-[10px] uppercase tracking-widest rounded">
-                  Featured
+          {stones.map((s) => {
+            const Wrap = s.id ? Link : "div";
+            const wrapProps = s.id
+              ? { to: `/stones/${s.id}`, "data-testid": `landing-stone-${s.id}` }
+              : {};
+            return (
+              <Wrap
+                key={s.id || s.name}
+                {...wrapProps}
+                className="group relative aspect-[4/5] overflow-hidden rounded-lg border border-white/5 hover-lift block"
+              >
+                <img src={s.image_url} alt={s.name} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
+                {s.featured && (
+                  <div className="absolute top-3 right-3 px-2 py-0.5 bg-gold text-black text-[10px] uppercase tracking-widest rounded">
+                    Featured
+                  </div>
+                )}
+                <div className="absolute bottom-4 left-4 right-4">
+                  <div className="font-serif text-lg text-white">{s.name}</div>
+                  <div className="text-xs text-zinc-400 mt-0.5 uppercase tracking-wider">
+                    {s.type || "Natural Stone"}
+                  </div>
                 </div>
-              )}
-              <div className="absolute bottom-4 left-4 right-4">
-                <div className="font-serif text-lg text-white">{s.name}</div>
-                <div className="text-xs text-zinc-400 mt-0.5 uppercase tracking-wider">
-                  {s.type || "Natural Stone"}
-                </div>
-              </div>
-            </div>
-          ))}
+              </Wrap>
+            );
+          })}
         </div>
       </section>
 
