@@ -389,7 +389,7 @@ async def purchase_credits(req: PurchaseReq, current=Depends(get_current_user)):
     pack = CREDIT_PACKS.get(req.pack_id)
     if not pack:
         raise HTTPException(status_code=400, detail="Invalid pack")
-    if req.method not in {"stripe", "paypal", "apple_pay", "google_pay"}:
+    if req.method not in {"paypal", "apple_pay", "google_pay"}:
         raise HTTPException(status_code=400, detail="Invalid payment method")
 
     # MOCKED PAYMENT - in production, integrate Stripe/PayPal here

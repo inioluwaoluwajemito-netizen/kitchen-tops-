@@ -3,12 +3,11 @@ import api, { formatApiError } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Sparkles, CreditCard, Smartphone, Apple, Globe, Check, Loader2 } from "lucide-react";
+import { Sparkles, CreditCard, Smartphone, Apple, Check, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 const METHODS = [
-  { id: "stripe", label: "Card (Stripe)", icon: CreditCard },
-  { id: "paypal", label: "PayPal", icon: Globe },
+  { id: "paypal", label: "PayPal", icon: CreditCard },
   { id: "apple_pay", label: "Apple Pay", icon: Apple },
   { id: "google_pay", label: "Google Pay", icon: Smartphone },
 ];
@@ -152,7 +151,7 @@ export default function Credits() {
             ))}
           </div>
           <div className="mt-2 text-[11px] text-zinc-500 flex items-center gap-2">
-            <Check className="w-3 h-3 text-gold" /> No real charges. Stripe goes live in v1.1.
+            <Check className="w-3 h-3 text-gold" /> No real charges yet — payments still mocked.
           </div>
         </DialogContent>
       </Dialog>
