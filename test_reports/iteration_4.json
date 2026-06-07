@@ -1,0 +1,44 @@
+{
+  "summary": "Iteration 4 backend testing complete. Refactor verified (server.py + deps.py + models.py + 5 routers) — all 54 prior regression tests still pass (17 rated_worktops + 19 iter2 + 18 iter3) with zero modifications. Added 13 NEW iteration4 tests covering: /api/health still 200 from server.py; new viz has published=true in BOTH response and Mongo doc; PATCH /visualizations/{id} happy path (200 + returned doc has published=False), other-user (404), bogus-id (404), empty body (400), unauthenticated (401); per-stone showroom EXCLUDES unpublished viz and re-INCLUDES it after republish; showroom respects the 8-render cap and returns [] for a brand-new stone with no renders. ONE real Gemini call total (reused across the iter4 module). All routers are correctly mounted under /api in the documented order (auth, stones, visualize, quotes, credits). No URL or response contracts changed.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "PATCH /api/visualizations/{id}",
+        "issue": "404 used to denote both 'not found' AND 'not your viz' (intentional — avoids leaking existence to other users). Documented behavior, not a bug, but worth noting in API docs."
+      },
+      {
+        "endpoint": "GET /api/public/stones/{id}",
+        "issue": "`renders` array still embeds `result_image` URL strings. Iteration 3 noted this — fine now that all new docs use object-storage URLs (~50 byte strings), but legacy data-URL docs (if any remain on this stone) would still bloat the payload. Cosmetic."
+      }
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_iteration4.py",
+    "/app/test_reports/pytest/iteration4_results.xml",
+    "/app/test_reports/pytest/iteration4_regression.xml",
+    "/app/test_reports/pytest/iteration4_rated_worktops.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Refactor is clean: server.py now ~115 lines (was 844). deps.py centralizes DB + JWT + bcrypt + get_current_user/require_admin. models.py has the new VisualizationUpdate model. Each router is self-contained.",
+    "routers/visualize.py imports `fetch_stone_payload` from routers/stones — server.py mounts stones BEFORE visualize, so import ordering at app boot is fine; the cross-router function-import couples the two but is acceptable for now.",
+    "PATCH endpoint correctly uses `find_one_and_update` with both `id` and `user_id` in the filter — single round-trip, secure (no separate 'fetch then check owner' race), and naturally returns 404 for both 'not found' and 'not yours'. Good.",
+    "VisualizationUpdate.published defaults to None and is excluded via model_dump(exclude_none=True), so PATCH with `{}` produces an empty update dict and the endpoint correctly raises 400. Verified.",
+    "Public showroom filter uses `published: {$ne: False}` — this correctly INCLUDES legacy docs that pre-date the `published` field (where the key is missing). Good design choice for backward compatibility.",
+    "visualize.py still has the inline base64 fallback if object storage fails — same warning as iter3 (could grow doc to ~700KB). Not a blocker.",
+    "Minor: empty-body PATCH returns 400 with detail 'No fields to update' — consistent with admin_update_stone in stones.py. Good consistency.",
+    "Minor: PATCH endpoint does not enforce a body shape — sending `{published: 'yes'}` (string) is rejected by Pydantic as 422; sending `{foo: 'bar'}` returns 400 because no known fields are set. Both acceptable."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration4.py (NEW — 13 tests, 1 real Gemini call)"
+  ],
+  "success_rate": {"backend": "100% (13/13 iter4 + 18/18 iter3 + 19/19 iter2 + 17/17 rated_worktops = 67/67)", "frontend": "not tested (skipped per request)"},
+  "test_credentials": "Admin admin@ratedworktops.com / Admin@RW2026 verified. Fresh users registered per run (it4owner_*, it4other_*).",
+  "seed_data_creation": "Per iter4 run: 2 fresh users (owner + other), 1 real Gemini viz (uploaded to object storage), 1 temporary house stone (created + deleted within test_showroom_empty_safe). No mutations to seeded admin or featured flags.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iteration 4 = refactor + tiny `published` feature, all green. The full regression matrix (rated_worktops + iter2 + iter3 + iter4 = 67 tests) runs in ~85s with 2-3 Gemini calls total. To minimize Gemini spend during quick checks, run iter4 alone (1 call, 13 tests). Note the cross-router import in visualize.py (`from routers.stones import fetch_stone_payload`) — if future iterations re-order router registration in server.py, ensure stones is mounted before visualize. PATCH /visualizations/{id} currently only supports the `published` field; extending the model is trivial via VisualizationUpdate in models.py.",
+  "rca of the issue": "No bugs to RCA — all tests pass first try."
+}
