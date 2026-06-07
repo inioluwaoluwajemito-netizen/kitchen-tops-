@@ -142,6 +142,7 @@ class HouseStoneCreate(BaseModel):
     description: str = ""
     image_url: str = Field(min_length=1)
     swatch_color: str = "#A1A1A1"
+    featured: bool = False
 
 
 class HouseStoneUpdate(BaseModel):
@@ -153,6 +154,41 @@ class HouseStoneUpdate(BaseModel):
     image_url: Optional[str] = None
     swatch_color: Optional[str] = None
     active: Optional[bool] = None
+    featured: Optional[bool] = None
+
+
+class GoogleAuthReq(BaseModel):
+    session_id: str
+
+
+class QuoteCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+    email: EmailStr
+    phone: Optional[str] = ""
+    notes: Optional[str] = ""
+    visualization_id: Optional[str] = None
+    stone_id: Optional[str] = None
+
+
+class QuoteUpdate(BaseModel):
+    status: Optional[str] = None  # new | contacted | closed
+
+
+
+    session_id: str
+
+
+class QuoteCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+    email: EmailStr
+    phone: Optional[str] = ""
+    notes: Optional[str] = ""
+    visualization_id: Optional[str] = None
+    stone_id: Optional[str] = None
+
+
+class QuoteUpdate(BaseModel):
+    status: Optional[str] = None  # new | contacted | closed
 
 
 async def require_admin(current=Depends(get_current_user)) -> dict:
@@ -204,6 +240,57 @@ async def logout(current=Depends(get_current_user)):
     return {"ok": True}
 
 
+# ============ Emergent Google Auth ============
+EMERGENT_OAUTH_URL = "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data"
+
+
+@api.post("/auth/google")
+async def google_auth(req: GoogleAuthReq):
+    """Exchange Emergent session_id for our own JWT bearer token."""
+    if not req.session_id or len(req.session_id) < 8:
+        raise HTTPException(status_code=400, detail="Missing session_id")
+    try:
+        async with httpx.AsyncClient(timeout=15) as c:
+            r = await c.get(EMERGENT_OAUTH_URL, headers={"X-Session-ID": req.session_id})
+        if r.status_code != 200:
+            raise HTTPException(status_code=401, detail="Invalid Google session")
+        profile = r.json()
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Google auth exchange failed")
+        raise HTTPException(status_code=502, detail=f"Google auth failed: {str(e)[:120]}")
+
+    email = (profile.get("email") or "").lower().strip()
+    if not email:
+        raise HTTPException(status_code=400, detail="Google did not return an email")
+    name = profile.get("name") or email.split("@")[0]
+    picture = profile.get("picture") or ""
+
+    user = await db.users.find_one({"email": email})
+    if user is None:
+        user_id = str(uuid.uuid4())
+        user = {
+            "id": user_id,
+            "email": email,
+            "name": name,
+            "password_hash": "",  # OAuth user — no password
+            "role": "user",
+            "credits": FREE_CREDITS,
+            "picture": picture,
+            "auth_provider": "google",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+        await db.users.insert_one(user)
+    else:
+        # Update profile picture if missing
+        if picture and not user.get("picture"):
+            await db.users.update_one({"id": user["id"]}, {"$set": {"picture": picture}})
+
+    token = create_access_token(user["id"], email)
+    return {"user": user_to_public(user), "access_token": token}
+
+
 # ============ Stones ============
 def _house_stone_public(s: dict) -> dict:
     return {
@@ -215,12 +302,23 @@ def _house_stone_public(s: dict) -> dict:
         "description": s.get("description", ""),
         "image_url": s["image_url"],
         "swatch_color": s.get("swatch_color", "#A1A1A1"),
+        "featured": bool(s.get("featured", False)),
     }
+
+
+@api.get("/public/stones")
+async def public_stones(featured_only: bool = False):
+    q = {"active": {"$ne": False}}
+    if featured_only:
+        q["featured"] = True
+    cursor = db.house_stones.find(q, {"_id": 0}).sort([("featured", -1), ("sort_order", 1)]).limit(50)
+    items = [_house_stone_public(s) for s in await cursor.to_list(50)]
+    return {"items": items}
 
 
 @api.get("/stones")
 async def list_stones(current=Depends(get_current_user)):
-    house_cursor = db.house_stones.find({"active": {"$ne": False}}, {"_id": 0}).sort("sort_order", 1)
+    house_cursor = db.house_stones.find({"active": {"$ne": False}}, {"_id": 0}).sort([("featured", -1), ("sort_order", 1)])
     house = [_house_stone_public(s) for s in await house_cursor.to_list(500)]
     custom_cursor = db.custom_stones.find({"user_id": current["id"]}, {"_id": 0, "image_base64": 0})
     custom = await custom_cursor.to_list(200)
@@ -299,6 +397,7 @@ async def admin_create_stone(body: HouseStoneCreate, _admin=Depends(require_admi
         "description": body.description.strip(),
         "image_url": body.image_url.strip(),
         "swatch_color": body.swatch_color.strip(),
+        "featured": bool(body.featured),
         "active": True,
         "sort_order": next_order,
         "created_at": datetime.now(timezone.utc).isoformat(),
@@ -458,6 +557,103 @@ async def delete_visualization(viz_id: str, current=Depends(get_current_user)):
     return {"deleted": res.deleted_count}
 
 
+# ============ Public render permalink ============
+@api.get("/public/renders/{viz_id}")
+async def public_render(viz_id: str):
+    viz = await db.visualizations.find_one({"id": viz_id}, {"_id": 0})
+    if not viz:
+        raise HTTPException(status_code=404, detail="Render not found")
+    # Strip internal fields, expose only what a public viewer needs
+    return {
+        "id": viz["id"],
+        "stone_id": viz.get("stone_id"),
+        "stone_name": viz.get("stone_name"),
+        "stone_image": viz.get("stone_image"),
+        "kitchen_image": viz.get("kitchen_image"),
+        "result_image": viz.get("result_image"),
+        "mode": viz.get("mode"),
+        "created_at": viz.get("created_at"),
+    }
+
+
+# ============ Quote requests (lead-gen) ============
+@api.post("/quotes")
+async def create_quote(req: QuoteCreate, request: Request):
+    """Public — no auth required. Anyone viewing a render can request a quote."""
+    quote_id = str(uuid.uuid4())
+    # Capture context if visualization provided
+    viz_ctx = None
+    stone_ctx = None
+    if req.visualization_id:
+        v = await db.visualizations.find_one({"id": req.visualization_id}, {"_id": 0, "result_image": 0, "kitchen_image": 0})
+        if v:
+            viz_ctx = {
+                "id": v["id"],
+                "stone_id": v.get("stone_id"),
+                "stone_name": v.get("stone_name"),
+            }
+            if not req.stone_id:
+                req.stone_id = v.get("stone_id")
+    if req.stone_id:
+        s = await db.house_stones.find_one({"id": req.stone_id}, {"_id": 0})
+        if s:
+            stone_ctx = {"id": s["id"], "name": s["name"], "type": s["type"]}
+
+    doc = {
+        "id": quote_id,
+        "name": req.name.strip()[:80],
+        "email": req.email.lower().strip(),
+        "phone": (req.phone or "").strip()[:40],
+        "notes": (req.notes or "").strip()[:2000],
+        "visualization_id": req.visualization_id,
+        "stone_id": req.stone_id,
+        "visualization": viz_ctx,
+        "stone": stone_ctx,
+        "status": "new",
+        "ip": request.client.host if request.client else None,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.quotes.insert_one(doc)
+    return {"id": quote_id, "status": "received"}
+
+
+@api.get("/admin/quotes")
+async def admin_list_quotes(status: Optional[str] = None, _admin=Depends(require_admin)):
+    q = {}
+    if status:
+        q["status"] = status
+    cursor = db.quotes.find(q, {"_id": 0}).sort("created_at", -1).limit(200)
+    items = await cursor.to_list(200)
+    counts_cursor = db.quotes.aggregate([{"$group": {"_id": "$status", "count": {"$sum": 1}}}])
+    counts = {c["_id"]: c["count"] async for c in counts_cursor}
+    return {"items": items, "counts": counts}
+
+
+@api.patch("/admin/quotes/{quote_id}")
+async def admin_update_quote(quote_id: str, body: QuoteUpdate, _admin=Depends(require_admin)):
+    updates = {}
+    if body.status is not None:
+        if body.status not in {"new", "contacted", "closed"}:
+            raise HTTPException(status_code=400, detail="Invalid status")
+        updates["status"] = body.status
+    if not updates:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    res = await db.quotes.find_one_and_update(
+        {"id": quote_id}, {"$set": updates}, return_document=True, projection={"_id": 0}
+    )
+    if not res:
+        raise HTTPException(status_code=404, detail="Quote not found")
+    return res
+
+
+@api.delete("/admin/quotes/{quote_id}")
+async def admin_delete_quote(quote_id: str, _admin=Depends(require_admin)):
+    res = await db.quotes.delete_one({"id": quote_id})
+    if res.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Quote not found")
+    return {"deleted": True}
+
+
 # ============ Credits ============
 CREDIT_PACKS = {
     "starter": {"id": "starter", "name": "Starter", "credits": 10, "price_gbp": 5, "popular": False},
@@ -533,6 +729,8 @@ async def on_startup():
     await db.custom_stones.create_index("user_id")
     await db.house_stones.create_index("id", unique=True)
     await db.house_stones.create_index("sort_order")
+    await db.quotes.create_index("created_at")
+    await db.quotes.create_index("status")
 
     # Seed house_stones from stones_data.py if collection is empty
     if await db.house_stones.count_documents({}) == 0:

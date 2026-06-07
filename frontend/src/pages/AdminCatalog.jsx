@@ -19,6 +19,7 @@ const EMPTY = {
   description: "",
   image_url: "",
   swatch_color: "#A1A1A1",
+  featured: false,
 };
 
 export default function AdminCatalog() {
@@ -58,6 +59,7 @@ export default function AdminCatalog() {
       description: s.description || "",
       image_url: s.image_url,
       swatch_color: s.swatch_color || "#A1A1A1",
+      featured: !!s.featured,
     });
     setEditing(s);
   };
@@ -158,6 +160,11 @@ export default function AdminCatalog() {
                 {s.active === false && (
                   <div className="absolute top-2 left-2 px-2 py-0.5 bg-black/80 text-[10px] uppercase tracking-widest text-zinc-300 rounded">
                     Hidden
+                  </div>
+                )}
+                {s.featured && (
+                  <div className="absolute top-2 right-2 px-2 py-0.5 bg-gold text-black text-[10px] uppercase tracking-widest rounded">
+                    Featured
                   </div>
                 )}
               </div>
@@ -312,6 +319,22 @@ export default function AdminCatalog() {
                 </div>
               </div>
             )}
+          </div>
+
+          <div className="mt-4">
+            <Label className="text-xs uppercase tracking-[0.2em] text-zinc-500">Featured stone</Label>
+            <div className="flex items-center gap-3 mt-3">
+              <Switch
+                checked={!!form.featured}
+                onCheckedChange={(v) => setForm({ ...form, featured: v })}
+                data-testid="admin-form-featured"
+              />
+              <span className="text-sm text-zinc-400">
+                {form.featured
+                  ? "Spotlighted on landing page & top of catalog"
+                  : "Standard catalog item"}
+              </span>
+            </div>
           </div>
 
           <div className="mt-4">

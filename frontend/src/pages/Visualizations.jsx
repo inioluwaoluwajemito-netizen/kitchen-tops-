@@ -5,12 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import CompareSlider from "@/components/CompareSlider";
 import { toast } from "sonner";
-import { Trash2, Eye, Download } from "lucide-react";
+import { Trash2, Eye, Download, Share2, MessageSquare } from "lucide-react";
+import QuoteDialog from "@/components/QuoteDialog";
 
 export default function Visualizations() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(null);
+  const [quoteFor, setQuoteFor] = useState(null);
 
   const load = async () => {
     setLoading(true);
@@ -38,6 +40,20 @@ export default function Visualizations() {
     a.href = url;
     a.download = `rated-worktops-${id}.png`;
     a.click();
+  };
+
+  const share = async (it) => {
+    const url = `${window.location.origin}/r/${it.id}`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: `Kitchen rendered in ${it.stone_name}`, url });
+      } else {
+        await navigator.clipboard.writeText(url);
+        toast.success("Public link copied — paste it anywhere");
+      }
+    } catch {
+      /* dismissed */
+    }
   };
 
   return (
@@ -74,22 +90,30 @@ export default function Visualizations() {
                   {it.mode}
                 </div>
               </div>
-              <div className="p-4 flex items-center justify-between">
-                <div className="min-w-0">
-                  <div className="font-serif text-lg truncate">{it.stone_name}</div>
-                  <div className="text-[11px] font-mono text-zinc-500">
-                    {new Date(it.created_at).toLocaleDateString()}
+              <div className="p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <div className="font-serif text-lg truncate">{it.stone_name}</div>
+                    <div className="text-[11px] font-mono text-zinc-500">
+                      {new Date(it.created_at).toLocaleDateString()}
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-1">
-                  <Button size="icon" variant="ghost" onClick={() => setOpen(it)} data-testid={`viz-view-${it.id}`} className="h-8 w-8 text-zinc-300">
-                    <Eye className="w-4 h-4" />
-                  </Button>
-                  <Button size="icon" variant="ghost" onClick={() => download(it.result_image, it.id)} className="h-8 w-8 text-zinc-300">
-                    <Download className="w-4 h-4" />
-                  </Button>
-                  <Button size="icon" variant="ghost" onClick={() => remove(it.id)} data-testid={`viz-delete-${it.id}`} className="h-8 w-8 text-red-400/80 hover:text-red-400">
+                  <Button size="icon" variant="ghost" onClick={() => remove(it.id)} data-testid={`viz-delete-${it.id}`} className="h-8 w-8 text-red-400/80 hover:text-red-400 shrink-0">
                     <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+                <div className="mt-3 grid grid-cols-4 gap-1">
+                  <Button size="sm" variant="ghost" onClick={() => setOpen(it)} data-testid={`viz-view-${it.id}`} className="text-zinc-300 hover:text-white h-8">
+                    <Eye className="w-3.5 h-3.5" />
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => download(it.result_image, it.id)} data-testid={`viz-download-${it.id}`} className="text-zinc-300 hover:text-white h-8">
+                    <Download className="w-3.5 h-3.5" />
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => share(it)} data-testid={`viz-share-${it.id}`} className="text-zinc-300 hover:text-white h-8">
+                    <Share2 className="w-3.5 h-3.5" />
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setQuoteFor(it)} data-testid={`viz-quote-${it.id}`} className="text-gold hover:text-gold/80 h-8">
+                    <MessageSquare className="w-3.5 h-3.5" />
                   </Button>
                 </div>
               </div>
@@ -111,6 +135,14 @@ export default function Visualizations() {
           )}
         </DialogContent>
       </Dialog>
+
+      <QuoteDialog
+        open={!!quoteFor}
+        onOpenChange={(o) => !o && setQuoteFor(null)}
+        visualizationId={quoteFor?.id}
+        stoneId={quoteFor?.stone_id}
+        stoneName={quoteFor?.stone_name}
+      />
     </div>
   );
 }

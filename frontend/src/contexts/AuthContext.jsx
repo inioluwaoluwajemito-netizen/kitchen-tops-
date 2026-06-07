@@ -26,6 +26,11 @@ export function AuthProvider({ children }) {
   }, []);
 
   useEffect(() => {
+    // If we're handling an OAuth callback, let AuthCallback set the token first
+    if (typeof window !== "undefined" && window.location.hash?.includes("session_id=")) {
+      setLoading(false);
+      return;
+    }
     refreshMe();
   }, [refreshMe]);
 

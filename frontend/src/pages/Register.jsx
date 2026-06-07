@@ -37,6 +37,12 @@ export default function Register() {
   const notImpl = (label) =>
     toast.info(`${label} sign-up coming soon. Use email & password for now.`);
 
+  // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
+  const googleSignIn = () => {
+    const redirectUrl = window.location.origin + "/dashboard";
+    window.location.href = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(redirectUrl)}`;
+  };
+
   return (
     <div className="min-h-screen grid lg:grid-cols-2">
       <div className="relative hidden lg:block">
@@ -96,7 +102,7 @@ export default function Register() {
             <div className="h-px flex-1 bg-white/10" />
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Button variant="outline" onClick={() => notImpl("Google")} data-testid="register-google" className="border-zinc-800 bg-zinc-900/40 hover:bg-zinc-900 text-zinc-200">
+            <Button variant="outline" onClick={googleSignIn} data-testid="register-google" className="border-zinc-800 bg-zinc-900/40 hover:bg-zinc-900 text-zinc-200">
               <Globe className="w-4 h-4 mr-2" /> Google
             </Button>
             <Button variant="outline" onClick={() => notImpl("Phone")} data-testid="register-phone" className="border-zinc-800 bg-zinc-900/40 hover:bg-zinc-900 text-zinc-200">

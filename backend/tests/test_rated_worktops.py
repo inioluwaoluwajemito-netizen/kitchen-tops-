@@ -135,9 +135,10 @@ def test_credits_endpoint(session, new_user):
 
 
 def test_purchase_credits_starter(session, new_user):
+    # Iteration 2: stripe removed, only paypal/apple_pay/google_pay accepted (all mocked)
     r = session.post(
         f"{API}/credits/purchase",
-        json={"pack_id": "starter", "method": "stripe"},
+        json={"pack_id": "starter", "method": "paypal"},
         headers=auth(new_user["token"]),
     )
     assert r.status_code == 200
@@ -150,7 +151,7 @@ def test_purchase_credits_starter(session, new_user):
 def test_purchase_invalid_pack(session, new_user):
     r = session.post(
         f"{API}/credits/purchase",
-        json={"pack_id": "nope", "method": "stripe"},
+        json={"pack_id": "nope", "method": "paypal"},
         headers=auth(new_user["token"]),
     )
     assert r.status_code == 400

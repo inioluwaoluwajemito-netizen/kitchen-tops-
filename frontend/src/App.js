@@ -11,6 +11,9 @@ import StoneCatalog from "@/pages/StoneCatalog";
 import Visualizations from "@/pages/Visualizations";
 import Credits from "@/pages/Credits";
 import AdminCatalog from "@/pages/AdminCatalog";
+import AdminQuotes from "@/pages/AdminQuotes";
+import RenderPublic from "@/pages/RenderPublic";
+import AuthCallback from "@/pages/AuthCallback";
 import Navbar from "@/components/Navbar";
 
 function Protected({ children }) {
@@ -42,7 +45,13 @@ function ScrollToTop() {
   return null;
 }
 
-function AppShell() {
+function AppRouter() {
+  const location = useLocation();
+  // Detect Emergent Auth callback synchronously — must run BEFORE protected routes
+  // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
+  if (location.hash?.includes("session_id=")) {
+    return <AuthCallback />;
+  }
   return (
     <Routes>
       <Route
@@ -53,6 +62,7 @@ function AppShell() {
           </Layout>
         }
       />
+      <Route path="/r/:id" element={<RenderPublic />} />
       <Route
         path="/login"
         element={
@@ -119,6 +129,16 @@ function AppShell() {
           </Protected>
         }
       />
+      <Route
+        path="/admin/quotes"
+        element={
+          <Protected>
+            <Layout>
+              <AdminQuotes />
+            </Layout>
+          </Protected>
+        }
+      />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
@@ -129,7 +149,7 @@ function App() {
     <BrowserRouter>
       <AuthProvider>
         <ScrollToTop />
-        <AppShell />
+        <AppRouter />
         <Toaster theme="dark" position="top-center" />
       </AuthProvider>
     </BrowserRouter>

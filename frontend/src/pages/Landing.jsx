@@ -1,19 +1,39 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import axios from "axios";
+import { API } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Upload, Wand2, Eye, Check } from "lucide-react";
 
-const STONE_PREVIEW = [
-  { name: "Carrara White", img: "https://images.unsplash.com/photo-1558346648-9757f2fa4474?crop=entropy&cs=srgb&fm=jpg&q=85&w=900" },
-  { name: "Nero Marquina", img: "https://images.unsplash.com/photo-1550053808-52a75a05955d?crop=entropy&cs=srgb&fm=jpg&q=85&w=900" },
-  { name: "Charcoal Granite", img: "https://images.pexels.com/photos/7683580/pexels-photo-7683580.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940" },
-  { name: "Arabescato", img: "https://images.unsplash.com/photo-1604147706283-d7119b5b822c?crop=entropy&cs=srgb&fm=jpg&q=85&w=900" },
+const STONE_FALLBACK = [
+  { name: "Carrara White", image_url: "https://images.unsplash.com/photo-1558346648-9757f2fa4474?crop=entropy&cs=srgb&fm=jpg&q=85&w=900" },
+  { name: "Nero Marquina", image_url: "https://images.unsplash.com/photo-1550053808-52a75a05955d?crop=entropy&cs=srgb&fm=jpg&q=85&w=900" },
+  { name: "Charcoal Granite", image_url: "https://images.pexels.com/photos/7683580/pexels-photo-7683580.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940" },
+  { name: "Arabescato", image_url: "https://images.unsplash.com/photo-1604147706283-d7119b5b822c?crop=entropy&cs=srgb&fm=jpg&q=85&w=900" },
 ];
 
 const HERO_IMG = "https://images.unsplash.com/photo-1628745277862-bc0b2d68c50c?crop=entropy&cs=srgb&fm=jpg&q=85&w=1800";
 const GALLERY_IMG = "https://images.unsplash.com/photo-1725257928373-dc6d2ac7b145?crop=entropy&cs=srgb&fm=jpg&q=85&w=1600";
 
 export default function Landing() {
+  const [stones, setStones] = useState(STONE_FALLBACK);
+
+  useEffect(() => {
+    axios
+      .get(`${API}/public/stones`)
+      .then(({ data }) => {
+        if (Array.isArray(data.items) && data.items.length) {
+          // Prefer featured if any, then top of sort order — slice to 4
+          const featured = data.items.filter((s) => s.featured);
+          const rest = data.items.filter((s) => !s.featured);
+          setStones([...featured, ...rest].slice(0, 4));
+        }
+      })
+      .catch(() => {
+        /* keep fallback */
+      });
+  }, []);
+
   return (
     <div className="relative">
       {/* HERO */}
@@ -101,13 +121,20 @@ export default function Landing() {
           </Link>
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {STONE_PREVIEW.map((s) => (
-            <div key={s.name} className="group relative aspect-[4/5] overflow-hidden rounded-lg border border-white/5">
-              <img src={s.img} alt={s.name} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+          {stones.map((s) => (
+            <div key={s.id || s.name} className="group relative aspect-[4/5] overflow-hidden rounded-lg border border-white/5">
+              <img src={s.image_url} alt={s.name} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
+              {s.featured && (
+                <div className="absolute top-3 right-3 px-2 py-0.5 bg-gold text-black text-[10px] uppercase tracking-widest rounded">
+                  Featured
+                </div>
+              )}
               <div className="absolute bottom-4 left-4 right-4">
                 <div className="font-serif text-lg text-white">{s.name}</div>
-                <div className="text-xs text-zinc-400 mt-0.5 uppercase tracking-wider">Natural Stone</div>
+                <div className="text-xs text-zinc-400 mt-0.5 uppercase tracking-wider">
+                  {s.type || "Natural Stone"}
+                </div>
               </div>
             </div>
           ))}

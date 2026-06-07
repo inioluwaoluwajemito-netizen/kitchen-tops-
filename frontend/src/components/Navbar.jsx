@@ -42,9 +42,14 @@ export default function Navbar() {
                 Credits
               </NavLink>
               {user.role === "admin" && (
-                <NavLink to="/admin/catalog" className={navItem} data-testid="nav-admin">
-                  Admin
-                </NavLink>
+                <>
+                  <NavLink to="/admin/catalog" className={navItem} data-testid="nav-admin">
+                    Admin
+                  </NavLink>
+                  <NavLink to="/admin/quotes" className={navItem} data-testid="nav-admin-quotes">
+                    Quotes
+                  </NavLink>
+                </>
               )}
             </>
           ) : (
