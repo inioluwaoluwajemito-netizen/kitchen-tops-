@@ -12,6 +12,8 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, FastAPI
 from starlette.middleware.cors import CORSMiddleware
+from starlette.staticfiles import StaticFiles
+from starlette.responses import FileResponse
 
 from deps import db, close_mongo, hash_password, verify_password
 from stones_data import STONES
@@ -43,6 +45,29 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Serve the built frontend app when available (mount /static only, handle SPA routing via catch-all)
+frontend_build = ROOT_DIR.parent / "frontend" / "build"
+if frontend_build.exists():
+    app.mount("/static", StaticFiles(directory=frontend_build / "static"), name="static")
+
+
+# Serve index.html for all non-API routes (SPA client-side routing)
+@app.get("/{full_path:path}")
+async def serve_spa(full_path: str):
+    """Serve index.html for client-side routes; let /api routes 404 naturally."""
+    if full_path.startswith("api/"):
+        # Let API 404s be handled naturally by FastAPI
+        from starlette.exceptions import HTTPException
+        raise HTTPException(status_code=404, detail="Not Found")
+    
+    if frontend_build.exists():
+        index_path = frontend_build / "index.html"
+        if index_path.exists():
+            return FileResponse(index_path)
+    
+    from starlette.exceptions import HTTPException
+    raise HTTPException(status_code=404, detail="Not Found")
 
 
 # ---- Seeders ----

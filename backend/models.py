@@ -25,6 +25,7 @@ class VisualizeReq(BaseModel):
     stone_id: str
     mode: str = "auto"  # auto | hybrid
     instructions: Optional[str] = ""
+    mask_image_base64: Optional[str] = None  # B/W mask for hybrid mode (white = apply stone)
 
 
 class VisualizationUpdate(BaseModel):
