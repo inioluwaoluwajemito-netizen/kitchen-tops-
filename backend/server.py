@@ -10,7 +10,7 @@ import os
 import uuid
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, FastAPI
+from fastapi import APIRouter, FastAPI, HTTPException
 from starlette.middleware.cors import CORSMiddleware
 from starlette.staticfiles import StaticFiles
 from starlette.responses import FileResponse
@@ -53,21 +53,15 @@ if frontend_build.exists():
 
 
 # Serve index.html for all non-API routes (SPA client-side routing)
+# This must come after all other routes
 @app.get("/{full_path:path}")
 async def serve_spa(full_path: str):
-    """Serve index.html for client-side routes; let /api routes 404 naturally."""
-    if full_path.startswith("api/"):
-        # Let API 404s be handled naturally by FastAPI
-        from starlette.exceptions import HTTPException
-        raise HTTPException(status_code=404, detail="Not Found")
-    
+    """Serve index.html for client-side routes. API routes are handled by FastAPI first."""
     if frontend_build.exists():
         index_path = frontend_build / "index.html"
         if index_path.exists():
             return FileResponse(index_path)
-    
-    from starlette.exceptions import HTTPException
-    raise HTTPException(status_code=404, detail="Not Found")
+    raise HTTPException(status_code=404, detail="App not found")
 
 
 # ---- Seeders ----
